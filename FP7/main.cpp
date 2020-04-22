@@ -5,7 +5,9 @@
 #include <vector>
 #include <map>
 #include <tuple>
+#include <string>
 #include <functional>
+#include <fstream>
 #include <range/v3/all.hpp>
 
 
@@ -57,6 +59,35 @@ std::vector<std::string> read_text() {
     };
 }
 
+std::vector<std::string> read_text2(const std::string& fileName) {
+    std::ifstream ifs{fileName};
+    if (ifs.fail() || ifs.eof()) {
+        std::cout << "word file open fail.\n";
+        return {};
+    }
+
+    std::vector<std::string> words;
+    std::string word;
+
+    while (ifs >> word) {
+        words.push_back(word);
+    }
+
+    return words;
+}
+
+
+//  list 7.4
+template <typename Range>
+void write_top_10(const Range& xs) {
+    auto items = ranges::views::zip(xs, ranges::views::ints(1, ranges::unreachable))
+    | ranges::views::transform([](const auto& pair){ return std::to_string(pair.second) + " " + pair.first;})
+    | ranges::views::take(10);
+    
+    for (const auto& item : items) {
+        std::cout << item << std::endl;
+    }
+}
 
 
 int main() {
@@ -134,8 +165,66 @@ int main() {
     print_item(wordsLval);
     
     
+    //  7-4
+    std::cout << "\n[ex 7-4] unreachable sentinel\n";
+    
+    std::vector<std::string> xs {
+        "x-ray", "for higher", "double target", "prince of prince", "killing machine", "I am a boy. you are a girl?",
+        "Gandi", "kamasutra", "zoo zoo", "chu webs", "bagging tackle", "carry on me", "boxer", "millionare boy", "god father"
+    };
+    
+    write_top_10(ranges::views::all(xs));
     
     
+    //  7-5
+    std::cout << "\n[ex 7-5 ~ 7-6] word count\n";
+    auto string_to_lower = [](const std::string& s){
+        return s | ranges::views::transform(tolower);
+    };
+    
+    auto string_only_alnum = [](const std::string& s){
+        auto ret = s | ranges::views::filter(isalnum);
+        return std::string(s);
+    };
+    
+    auto is_empty_string = [](const std::string& s){return s.empty();};
+    
+    std::cout << "(input your word)\n";
+    
+    std::vector<std::string> xs2 {
+        "x-ray", "for higher", "double target", "prince of prince", "killing machine", "I am a boy. you are a girl?",
+        "Gandi", "kamasutra", "zoo zoo", "chu webs", "bagging tackle", "carry On ME", "bOxer", "millionare boy", "god father",
+        "Gandi", "kamasutra", "zoo zoo", "chu webs", "bagging tackle", "cARry On me", "boxer", "mIllionAre Boy", "god father",
+        "Gandi", "kamasutra", "zoo zoo", "CHU weBs", "CHU weBs", "CHU weBs"
+    };
+    
+//    std::vector<std::string> words2 = ranges::istream_range<std::string>(std::cin)
+    std::vector<std::string> words2 = xs2
+    | ranges::views::transform(string_to_lower)
+    | ranges::views::transform(string_only_alnum)
+//    | ranges::views::remove_if(&std::string::empty);
+    | ranges::views::remove_if(is_empty_string);
+
+    
+    words2 |= ranges::actions::sort;    //  for sorting, convert ranges to vector
+    
+    const auto results = words2
+    | ranges::views::group_by(std::equal_to<>())
+    | ranges::views::transform([](const auto& group){
+        const auto begin = std::begin(group);
+        const auto end = std::end(group);
+        const auto count = ranges::distance(begin, end);
+        const auto word = *begin;
+        
+        return std::make_pair(count, word);
+    })
+    | ranges::to_vector | ranges::actions::sort;
+    
+    for (auto value : results
+         | ranges::views::reverse
+         | ranges::views::take(10)) {
+        std::cout << value.first << " " << value.second << std::endl;
+    }
     
     
     return 0;
